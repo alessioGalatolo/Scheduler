@@ -7,15 +7,27 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
     private var hours = Array<ArrayList<Activity>>(HOURS_PER_DAY * partsOfHour) {ArrayList()} //size
 
     fun reduceMinActivityTime(newPartsOfHour: Int){
+        require(newPartsOfHour % partsOfHour == 0)
         if(newPartsOfHour > partsOfHour) {
+            val increment = newPartsOfHour / partsOfHour
             partsOfHour = newPartsOfHour
             val old = hours
             hours = Array(HOURS_PER_DAY * partsOfHour){i ->
-                TODO()
+                if(old[i/increment].isEmpty())
+                    ArrayList<Activity>()
+                else
+                    old[i/increment]
             }
         }
-        TODO("resize the array hours to make space for shorter activity")
     }
+
+    //to be deleted
+//    fun printHours(){
+//        for(hour in hours)
+//            println(hour.toString())
+//        println()
+//        println()
+//    }
 
     fun addActivity(activity: Activity, index: Int){
         if(hours[index].isEmpty())

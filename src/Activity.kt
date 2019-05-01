@@ -12,4 +12,8 @@ class Activity(private val name: String, private val expectedDuration: Duration,
     fun getName() : String{
         return name
     }
+
+    override fun toString(): String {
+        return name
+    }
 }
