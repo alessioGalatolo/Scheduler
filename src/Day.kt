@@ -45,10 +45,12 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
         }
     }
 
-    fun getBlockIterator(): TimeBlockIterator{
-        return TimeBlockIterator(this)
+    fun getBlockIterator(urgent: Boolean = false): TimeBlockIterator{
+        return TimeBlockIterator(this, urgent = urgent)
     }
 
+
+    //deprecated
     fun getFreeHours(): ArrayList<Int> {
         val freeHours = ArrayList<Int>()
         for(i in currentTimeRange() until hours.size){
@@ -66,7 +68,9 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
     }
 
 
-    inner class TimeBlockIterator(private val day: Day, initCursor: Int = -1): Iterator<Pair<Int, Int>> {
+    inner class TimeBlockIterator(private val day: Day, initCursor: Int = -1,
+                                  urgent: Boolean = false/*if urgent it returns also the blocks already scheduled but that can be postponed*/): Iterator<Pair<Int, Int>> {
+
 
         private var cursor: Int = if(initCursor != -1) initCursor
         else day.currentTimeRange()
@@ -79,7 +83,7 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
             return false
         }
 
-        //returns the range of free block such as both ends are included [start, end]
+        //returns the range of free block such as both ends are included [start, end] //countercomment: are you sure?
         override fun next(): Pair<Int, Int> {
             for(i in cursor until day.hours.size){
                 if(day.hours[i].isEmpty()) {

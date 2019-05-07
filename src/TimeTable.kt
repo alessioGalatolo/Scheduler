@@ -1,4 +1,5 @@
 import java.time.DayOfWeek
+import kotlin.collections.ArrayList
 
 
 class TimeTable {
@@ -21,10 +22,12 @@ class TimeTable {
     }
 
     fun flush(){
-        activityBuffer.sortBy {it.urgency}
+        activityBuffer.sortBy {it.deadline}
         for(activity in activityBuffer){
-            if(activity.urgency >= TOLERABLE_URGENCY)
-               days[1].getFreeHours()
+            val iterator = days[1].getBlockIterator()
+            for(item in iterator){
+                while(activity.deadline)
+            }
         }
 
     }

@@ -1,12 +1,16 @@
+import java.time.DayOfWeek
 import java.time.Duration
+import java.util.*
 
-class Activity(private val name: String, private val expectedDuration: Duration, val urgency: Int, var likability: Int,  val parallelizable: Boolean = false) {
+class Activity(private val name: String, private val expectedDuration: Duration,
+               val deadline: Deadline /*Long represents the minutes from midnight. deadline can only be max 1 month away */,
+               var likability: Int,  val parallelizable: Boolean = false) {
+
 
     private var avarageDuration = expectedDuration
 
     init {
         require(likability in 0..MAX_LIKABILITY){ "Likability value out of range" }
-        require(urgency in 0..MAX_URGENCY){"urgency value out of range"}
     }
 
     fun getName() : String{
@@ -15,5 +19,25 @@ class Activity(private val name: String, private val expectedDuration: Duration,
 
     override fun toString(): String {
         return name
+    }
+
+    inner class Deadline(private val dayOfMonth: Int, hour: Int, min: Int): Comparable<Deadline>{
+        override fun compareTo(other: Deadline): Int {
+            val currentDay = GregorianCalendar().get(GregorianCalendar.DAY_OF_MONTH)
+            val day1 = if(dayOfMonth >= currentDay) dayOfMonth
+            else dayOfMonth + currentDay
+            val day2 = if(other.dayOfMonth >= currentDay) other.dayOfMonth
+            else other.dayOfMonth + currentDay
+
+            return day1 - day2
+        }
+
+        val time = hour * 60 + min
+
+        init{
+            require(hour in 0 until 24)
+            require(min in 0 until 60)
+        }
+
     }
 }
