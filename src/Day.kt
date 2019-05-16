@@ -45,8 +45,20 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
         }
     }
 
-    fun getBlockIterator(urgent: Boolean = false): TimeBlockIterator{
-        return TimeBlockIterator(this, urgent = urgent)
+    fun isUrgent(deadline: Activity.Deadline, duration: Int, initCursor: Int = -1): Boolean{
+        val x =  duration / 60 / partsOfHour
+        val iterator = TimeBlockIterator(this, initCursor, duration = x)
+        for(i in iterator){
+            return deadline.getBlock(partsOfHour) > i.start + x
+        }
+        return true
+    }
+
+    fun getBlockIterator(duration: Int, deadline: Activity.Deadline? = null): TimeBlockIterator{
+        if(deadline != null)
+            return TimeBlockIterator(this, urgent = isUrgent(deadline, duration), duration = duration)
+        else
+            return TimeBlockIterator(this, duration = duration)
     }
 
 
@@ -67,33 +79,44 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
         return currentTime + ( GregorianCalendar().get(GregorianCalendar.MINUTE).toDouble() / 60 * partsOfHour ).toInt() + 1
     }
 
+    data class TimeBlockIterate(val start: Int, val end: Int, val toBePostponed: ArrayList<Activity>)
 
     inner class TimeBlockIterator(private val day: Day, initCursor: Int = -1,
-                                  urgent: Boolean = false/*if urgent it returns also the blocks already scheduled but that can be postponed*/): Iterator<Pair<Int, Int>> {
+                                  val urgent: Boolean = false/*if urgent it returns also the blocks already scheduled but that can be postponed*/,
+                                  private val duration: Int = 1): Iterator<TimeBlockIterate> {
+
 
 
         private var cursor: Int = if(initCursor != -1) initCursor
         else day.currentTimeRange()
 
         override fun hasNext(): Boolean {
-            for(i in cursor until day.hours.size){
-                if(day.hours[i].isEmpty())
-                    return true
+            var x = duration
+            for(i in cursor until day.hours.size) {
+                if (day.hours[i].isEmpty()){
+                    x--
+                    if(x == 0)
+                        return true
+                }
+                else
+                    x = duration
             }
             return false
         }
 
         //returns the range of free block such as both ends are included [start, end] //countercomment: are you sure?
-        override fun next(): Pair<Int, Int> {
+        override fun next(): TimeBlockIterate {
             for(i in cursor until day.hours.size){
-                if(day.hours[i].isEmpty()) {
-                    val start = i
+                //TODO("set behavior when urgent = true")
+                if(day.hours[i].isEmpty() || (day.hours[i].size < 2 && day.hours[i][0].parallelizable)) {
                     var end = i
-                    while (day.hours[end].isEmpty()) {
+                    while (day.hours[end].isEmpty() ) {
                         end++
                     }
-                    cursor = end
-                    return Pair(start, end - 1)
+                    if(end - i >= duration) {
+                        cursor = end
+                        return TimeBlockIterate(i, end - 1, ArrayList())
+                    }
                 }
             }
             throw NoSuchElementException()

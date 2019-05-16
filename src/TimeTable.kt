@@ -21,12 +21,14 @@ class TimeTable {
         checkFlush()
     }
 
+
+    //deadline -> likeability alternance ->
     fun flush(){
         activityBuffer.sortBy {it.deadline}
         for(activity in activityBuffer){
-            val iterator = days[1].getBlockIterator()
+            val iterator = days[1].getBlockIterator(activity.duration)
             for(item in iterator){
-                while(activity.deadline)
+
             }
         }
 

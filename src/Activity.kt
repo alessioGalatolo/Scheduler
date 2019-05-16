@@ -1,16 +1,15 @@
-import java.time.DayOfWeek
-import java.time.Duration
 import java.util.*
 
-class Activity(private val name: String, private val expectedDuration: Duration,
+class Activity(private val name: String, private val expectedDuration: Int/*#of minutes*/,
                val deadline: Deadline /*Long represents the minutes from midnight. deadline can only be max 1 month away */,
-               var likability: Int,  val parallelizable: Boolean = false) {
+               val duration: Int,
+               val plesurable: Boolean,  val parallelizable: Boolean = false) {
 
 
     private var avarageDuration = expectedDuration
 
     init {
-        require(likability in 0..MAX_LIKABILITY){ "Likability value out of range" }
+        //require(likability in 0..MAX_LIKABILITY){ "Likability value out of range" }
     }
 
     fun getName() : String{
@@ -30,6 +29,10 @@ class Activity(private val name: String, private val expectedDuration: Duration,
             else other.dayOfMonth + currentDay
 
             return day1 - day2
+        }
+
+        fun getBlock(partsOfHour: Int): Int {
+            return time / 60 / partsOfHour
         }
 
         val time = hour * 60 + min
