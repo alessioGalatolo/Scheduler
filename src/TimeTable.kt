@@ -26,10 +26,13 @@ class TimeTable {
     fun flush(){
         activityBuffer.sortBy {it.deadline}
         for(activity in activityBuffer){
-            val iterator = days[1].getBlockIterator(activity.duration)
-            for(item in iterator){
+            //val iterator = days[1].getBlockIterator(activity.duration, activity.deadline)
+            if(days[1].isUrgent(activity.deadline, activity.duration)){
 
+            }else{
+                days[1].putFirstFreeBlock(activity)
             }
+
         }
 
     }

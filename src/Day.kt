@@ -29,13 +29,33 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
 //        println()
 //    }
 
-    fun addActivity(activity: Activity, index: Int){
-        if(hours[index].isEmpty())
-            hours[index].add(activity)
-        else if(activity.parallelizable && hours[index][0].parallelizable) //need to check only first element for induction
-            hours[index].add(activity)
-        else
-            throw ActivitiesNotCompatibleException("The hour you're trying to access is occupied and one of the activities is not serializable")
+    private fun getBlockDuration(duration: Int): Int{
+        return duration / 60 / partsOfHour
+    }
+
+    private fun getMinutesDuration(blocks: Int): Int{
+        return blocks * 60 / partsOfHour
+    }
+
+
+
+    fun addActivity(activity: Activity, index: Int, duration: Int = -1){
+        val recDur = if(duration != -1)
+                duration
+            else
+                getBlockDuration(activity.duration)
+
+        if(recDur != 0) {
+            addActivity(activity, index + 1, recDur - 1) //
+            //TODO("check for OB1 error")
+
+            if (hours[index].isEmpty())
+                hours[index].add(activity)
+            else if (activity.parallelizable && hours[index][0].parallelizable) //need to check only first element for induction
+                hours[index].add(activity)
+            else
+                throw ActivitiesNotCompatibleException("The hour you're trying to access is occupied and one of the activities is not serializable")
+        }
     }
 
     fun addActivities(activities: List<Activity>, indexes: List<Int>){
@@ -46,19 +66,18 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
     }
 
     fun isUrgent(deadline: Activity.Deadline, duration: Int, initCursor: Int = -1): Boolean{
-        val x =  duration / 60 / partsOfHour
-        val iterator = TimeBlockIterator(this, initCursor, duration = x)
+        val iterator = TimeBlockIterator(this, initCursor, duration = getBlockDuration(duration))
         for(i in iterator){
             return deadline.getBlock(partsOfHour) > i.start + x
         }
         return true
     }
 
-    fun getBlockIterator(duration: Int, deadline: Activity.Deadline? = null): TimeBlockIterator{
-        if(deadline != null)
-            return TimeBlockIterator(this, urgent = isUrgent(deadline, duration), duration = duration)
+    fun getBlockIterator(deadline: Activity.Deadline? = null, duration: Int): TimeBlockIterator{
+        return if(deadline != null)
+            TimeBlockIterator(this, urgent = isUrgent(deadline, duration), duration = duration)
         else
-            return TimeBlockIterator(this, duration = duration)
+            TimeBlockIterator(this, duration = duration)
     }
 
 
@@ -77,6 +96,21 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
     private fun currentTimeRange(): Int{
         val currentTime = GregorianCalendar().get(GregorianCalendar.HOUR_OF_DAY) * partsOfHour
         return currentTime + ( GregorianCalendar().get(GregorianCalendar.MINUTE).toDouble() / 60 * partsOfHour ).toInt() + 1
+    }
+
+    fun putFirstFreeBlock(activity: Activity) {
+        val iterator = TimeBlockIterator(this, getBlockDuration(activity.duration))
+        addActivity(activity, iterator.next().start)
+    }
+
+    fun putWhilePostponing(activity: Activity, index: Int){
+
+    }
+
+    private fun postponable(activity: Activity, index: Int): Boolean{
+
+        TODO()
+
     }
 
     data class TimeBlockIterate(val start: Int, val end: Int, val toBePostponed: ArrayList<Activity>)
@@ -108,7 +142,7 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
         override fun next(): TimeBlockIterate {
             for(i in cursor until day.hours.size){
                 //TODO("set behavior when urgent = true")
-                if(day.hours[i].isEmpty() || (day.hours[i].size < 2 && day.hours[i][0].parallelizable)) {
+                if(day.hours[i].isEmpty() || (day.hours[i].size < 2 && day.hours[i][0].parallelizable) || (urgent && !day.hours[i][0].parallelizable && postponable(day.hours[i][0], i))) {
                     var end = i
                     while (day.hours[end].isEmpty() ) {
                         end++

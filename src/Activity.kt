@@ -1,12 +1,12 @@
 import java.util.*
 
-class Activity(private val name: String, private val expectedDuration: Int/*#of minutes*/,
-               val deadline: Deadline /*Long represents the minutes from midnight. deadline can only be max 1 month away */,
-               val duration: Int,
+class Activity(private val name: String,
+               val deadline: Deadline,
+               val duration: Int, //#number of minutes
                val plesurable: Boolean,  val parallelizable: Boolean = false) {
 
 
-    private var avarageDuration = expectedDuration
+    private var avarageDuration = duration
 
     init {
         //require(likability in 0..MAX_LIKABILITY){ "Likability value out of range" }
