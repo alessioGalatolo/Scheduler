@@ -4,7 +4,7 @@ import kotlin.collections.ArrayList
 
 class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
 
-    private var hours = Array<ArrayList<Activity>>(HOURS_PER_DAY * partsOfHour) {ArrayList()} //size
+    private var hours = Array<TimeBlock>(HOURS_PER_DAY * partsOfHour) {i -> TimeBlock(start = i)} //size
 
     fun reduceMinActivityTime(newPartsOfHour: Int){
         require(newPartsOfHour % partsOfHour == 0)
@@ -14,7 +14,7 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
             val old = hours
             hours = Array(HOURS_PER_DAY * partsOfHour){i ->
                 if(old[i/increment].isEmpty())
-                    ArrayList<Activity>()
+                    TimeBlock(start = i)
                 else
                     old[i/increment]
             }
@@ -51,10 +51,10 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
 
             if (hours[index].isEmpty())
                 hours[index].add(activity)
-            else if (activity.parallelizable && hours[index][0].parallelizable) //need to check only first element for induction
+            /*else if (activity.parallelizable && hours[index][0].parallelizable) //need to check only first element for induction
                 hours[index].add(activity)
             else
-                throw ActivitiesNotCompatibleException("The hour you're trying to access is occupied and one of the activities is not serializable")
+                throw ActivitiesNotCompatibleException("The hour you're trying to access is occupied and one of the activities is not serializable")*/
         }
     }
 
@@ -65,20 +65,20 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
         }
     }
 
-    fun isUrgent(deadline: Activity.Deadline, duration: Int, initCursor: Int = -1): Boolean{
-        val iterator = TimeBlockIterator(this, initCursor, duration = getBlockDuration(duration))
+    fun isUrgent(activity: Activity, initCursor: Int = -1): Boolean{
+        val iterator = TimeBlockIterator(this, initCursor, duration = getBlockDuration(activity.duration))
         for(i in iterator){
-            return deadline.getBlock(partsOfHour) > i.start + x
+            return activity.deadline.getBlock(partsOfHour) > i.start + getBlockDuration(activity.duration)
         }
         return true
     }
 
-    fun getBlockIterator(deadline: Activity.Deadline? = null, duration: Int): TimeBlockIterator{
-        return if(deadline != null)
-            TimeBlockIterator(this, urgent = isUrgent(deadline, duration), duration = duration)
-        else
-            TimeBlockIterator(this, duration = duration)
-    }
+//    fun getBlockIterator(deadline: Activity.Deadline? = null, duration: Int): TimeBlockIterator{
+//        return if(deadline != null)
+//            TimeBlockIterator(this, urgent = isUrgent(deadline, duration), duration = duration)
+//        else
+//            TimeBlockIterator(this, duration = duration)
+//    }
 
 
     //deprecated
@@ -98,12 +98,44 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
         return currentTime + ( GregorianCalendar().get(GregorianCalendar.MINUTE).toDouble() / 60 * partsOfHour ).toInt() + 1
     }
 
-    fun putFirstFreeBlock(activity: Activity) {
-        val iterator = TimeBlockIterator(this, getBlockDuration(activity.duration))
-        addActivity(activity, iterator.next().start)
+    fun putFirstFreeBlock(activities: ArrayList<Activity>) {
+        for(activity in activities){
+            if(isUrgent(activity)){
+                if(isInsertable(activity))
+                    forceInsertion(activity, activities)
+                else
+                    throw CannotFitActivityException()
+            }else{
+                addActivity(???)
+            }
+            activities.remove(activity)
+        }
+//        val iterator = TimeBlockIterator(this, getBlockDuration(activity.duration))
+//        addActivity(activity, iterator.next().start)
     }
 
-    fun putWhilePostponing(activity: Activity, index: Int){
+    private fun forceInsertion(activity: Activity, activities: ArrayList<Activity>) {
+        TODO()
+    }
+
+    private fun isInsertable(activity: Activity): Boolean{ //Hp: Activity can never be Serializable
+        val freeSet = TreeSet<Int>()
+        var i = 0
+        while(freeSet.size < getBlockDuration(activity.duration) && i < hours.size){
+            if(!hours[i].isEmpty()){
+                val act = hours[i]
+                i = act.end //hours[i] should = act
+                var j = i
+                while(++j < act.activity!!.deadline.getBlock(partsOfHour)){
+                    freeSet.add(j)
+                }
+            }
+            else
+                freeSet.add(i)
+            i++
+
+        }
+        return freeSet.size >= getBlockDuration(activity.duration)
 
     }
 
@@ -142,7 +174,7 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
         override fun next(): TimeBlockIterate {
             for(i in cursor until day.hours.size){
                 //TODO("set behavior when urgent = true")
-                if(day.hours[i].isEmpty() || (day.hours[i].size < 2 && day.hours[i][0].parallelizable) || (urgent && !day.hours[i][0].parallelizable && postponable(day.hours[i][0], i))) {
+                if(day.hours[i].isEmpty() /*|| (day.hours[i].size < 2 && day.hours[i][0].parallelizable)*/ || (urgent /*&& !day.hours[i][0].parallelizable*/ && postponable(day.hours[i][0], i))) {
                     var end = i
                     while (day.hours[end].isEmpty() ) {
                         end++
@@ -155,6 +187,22 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
             }
             throw NoSuchElementException()
         }
+    }
+
+
+    inner class TimeBlock(var activity: Activity? = null, start: Int,
+                          val end: Int = if(activity != null)
+                              getBlockDuration(activity.duration) + start
+                          else start) {
+
+        fun isEmpty(): Boolean{
+            return activity == null
+        }
+
+        fun add(activity: Activity) {
+            this.activity = activity
+        }
+
     }
 
 
