@@ -4,7 +4,7 @@ import kotlin.collections.ArrayList
 
 class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
 
-    private var hours = Array<TimeBlock>(HOURS_PER_DAY * partsOfHour) {i -> TimeBlock(start = i)} //size
+    private var hours = Array(HOURS_PER_DAY * partsOfHour) { i -> TimeBlock(index = i, start = i)}
 
     fun reduceMinActivityTime(newPartsOfHour: Int){
         require(newPartsOfHour % partsOfHour == 0)
@@ -14,7 +14,7 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
             val old = hours
             hours = Array(HOURS_PER_DAY * partsOfHour){i ->
                 if(old[i/increment].isEmpty())
-                    TimeBlock(start = i)
+                    TimeBlock(index = i, start = i)
                 else
                     old[i/increment]
             }
@@ -38,8 +38,17 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
     }
 
 
+    private fun addActivity(activity: Activity){
+        val iterator = TimeBlockIterator(this, duration = activity.duration)
+        val ite = iterator.next()
+        for(i in ite.start..ite.end){ //TODO(check the interval)
+            hours[i].add(activity, ite.start)
+        }
+    }
 
-    fun addActivity(activity: Activity, index: Int, duration: Int = -1){
+
+    //old one
+    /*fun addActivity(activity: Activity, index: Int, duration: Int = -1){
         val recDur = if(duration != -1)
                 duration
             else
@@ -56,40 +65,21 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
             else
                 throw ActivitiesNotCompatibleException("The hour you're trying to access is occupied and one of the activities is not serializable")*/
         }
-    }
+    }*/
 
-    fun addActivities(activities: List<Activity>, indexes: List<Int>){
-        require(activities.size == indexes.size){ "every activity must have a index to be put to" }
-        for(i in 0 until activities.size){
-            addActivity(activities[i], indexes[i])
-        }
-    }
+//    fun addActivities(activities: List<Activity>, indexes: List<Int>){
+//        require(activities.size == indexes.size){ "every activity must have a index to be put to" }
+//        for(i in 0 until activities.size){
+//            addActivity(activities[i], indexes[i])
+//        }
+//    }
 
-    fun isUrgent(activity: Activity, initCursor: Int = -1): Boolean{
+    private fun isUrgent(activity: Activity, initCursor: Int = -1): Boolean{
         val iterator = TimeBlockIterator(this, initCursor, duration = getBlockDuration(activity.duration))
         for(i in iterator){
             return activity.deadline.getBlock(partsOfHour) > i.start + getBlockDuration(activity.duration)
         }
         return true
-    }
-
-//    fun getBlockIterator(deadline: Activity.Deadline? = null, duration: Int): TimeBlockIterator{
-//        return if(deadline != null)
-//            TimeBlockIterator(this, urgent = isUrgent(deadline, duration), duration = duration)
-//        else
-//            TimeBlockIterator(this, duration = duration)
-//    }
-
-
-    //deprecated
-    fun getFreeHours(): ArrayList<Int> {
-        val freeHours = ArrayList<Int>()
-        for(i in currentTimeRange() until hours.size){
-            if(hours[i].isEmpty()){
-                freeHours.add(i)
-            }
-        }
-        return freeHours
     }
 
     //returns the current time range. ex: 17:20 -> 35 if partsOfHours == 2. should be the index of the array of hours
@@ -101,12 +91,14 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
     fun putFirstFreeBlock(activities: ArrayList<Activity>) {
         for(activity in activities){
             if(isUrgent(activity)){
-                if(isInsertable(activity))
+                if(isInsertable(activity)) {
                     forceInsertion(activity, activities)
+                    return
+                }
                 else
                     throw CannotFitActivityException()
             }else{
-                addActivity(???)
+                addActivity(activity)
             }
             activities.remove(activity)
         }
@@ -115,9 +107,43 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
     }
 
     private fun forceInsertion(activity: Activity, activities: ArrayList<Activity>) {
-        TODO()
+        activities.addAll(toReinsert(activity))
+        activities.sortBy { it.deadline }
+        putFirstFreeBlock(activities)
     }
 
+
+    //returns the list of activities to be moved to make place for activity
+    private fun toReinsert(activity: Activity): ArrayList<Activity>{
+        val actList = ArrayList<Activity>()
+        val freeSet = TreeSet<Int>()
+        var i = 0
+        while(freeSet.size < getBlockDuration(activity.duration) && i < hours.size){
+            if(!hours[i].isEmpty()){
+                val act = hours[i]
+                i = act.end //hours[i] should = act
+                var j = i
+                var inserted = false
+                while(++j < act.activity!!.deadline.getBlock(partsOfHour)){
+                    freeSet.add(j)
+                    inserted = true
+                }
+                if(inserted) {
+                    actList.add(act.activity()!!)
+
+                    for(j in act.start..act.end) { //TODO(check interval)
+                        //TODO(check if changing act.start changes the loop)
+                        hours[j].removeActivity()
+                    }
+                }
+            }
+            else
+                freeSet.add(i)
+            i++
+
+        }
+        return actList
+    }
     private fun isInsertable(activity: Activity): Boolean{ //Hp: Activity can never be Serializable
         val freeSet = TreeSet<Int>()
         var i = 0
@@ -140,9 +166,7 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
     }
 
     private fun postponable(activity: Activity, index: Int): Boolean{
-
         TODO()
-
     }
 
     data class TimeBlockIterate(val start: Int, val end: Int, val toBePostponed: ArrayList<Activity>)
@@ -174,7 +198,7 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
         override fun next(): TimeBlockIterate {
             for(i in cursor until day.hours.size){
                 //TODO("set behavior when urgent = true")
-                if(day.hours[i].isEmpty() /*|| (day.hours[i].size < 2 && day.hours[i][0].parallelizable)*/ || (urgent /*&& !day.hours[i][0].parallelizable*/ && postponable(day.hours[i][0], i))) {
+                if(day.hours[i].isEmpty() /*|| (day.hours[i].size < 2 && day.hours[i][0].parallelizable)*/ /*|| (urgent && !day.hours[i][0].parallelizable && postponable(day.hours[i].activity, i))*/) {
                     var end = i
                     while (day.hours[end].isEmpty() ) {
                         end++
@@ -190,8 +214,8 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
     }
 
 
-    inner class TimeBlock(var activity: Activity? = null, start: Int,
-                          val end: Int = if(activity != null)
+    inner class TimeBlock(var activity: Activity? = null, val index: Int, var start: Int,
+                          var end: Int = if(activity != null)
                               getBlockDuration(activity.duration) + start
                           else start) {
 
@@ -199,8 +223,20 @@ class Day(name: DayOfWeek, private var partsOfHour: Int = 2) {
             return activity == null
         }
 
-        fun add(activity: Activity) {
+        fun add(activity: Activity, start: Int) {
             this.activity = activity
+            this.start = start
+            this.end =  getBlockDuration(activity.duration) + start
+        }
+
+        fun activity(): Activity?{
+            return activity
+        }
+
+        fun removeActivity(){
+            activity = null
+            start = index
+            end = start
         }
 
     }
